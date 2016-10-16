@@ -1,8 +1,8 @@
 # Site settings
 title: Social Networks and Honeybees
 description: 'master thesis - documentation and findings'
-url: 'http://alexa.sc/networks'
-baseurl: '/networks/'
+url: 'http://alexa.sc/bees-sna'
+baseurl: '/bees-sna/'
 # google_analytics: 'UA-XXXXXX-X'
 # disqus_shortname: 'your-disqus-name'
 
