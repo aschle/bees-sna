@@ -20,5 +20,7 @@ The basis for the dataset is nine weeks of video data capturing honeybees moving
 * radius of the ID tag
 * decoded 12-bit id with probabilities discretised to 0-255
 
+![detections pre frame/timestamp][attributes]
 
 [markers]: {{ site.url }}/images/markers.png
+[attributes]: {{ site.url }}/images/attributes.png
