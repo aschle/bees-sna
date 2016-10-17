@@ -13,5 +13,13 @@ layout: default
     {{ content }}
   </section>
   {% if page.comments != false and site.disqus_shortname %}<section id="disqus_thread"></section><!-- /#disqus_thread -->{% endif %}
+  <section>
+    <hr class="ref">
+    <ul class="list-unstyled">
+    {% for r in page.refs %}
+      <li>[{{ forloop.index }}] {{ r }}</li>
+    {% endfor %}
+    </ul>
+  </section>
 </article>
 {% if page.comments != false %}{% include disqus.html %}{% endif %}
