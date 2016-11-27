@@ -47,46 +47,50 @@ def get_dataframe(fc):
 
 
 # helper function
-def get_binary_bit(bit, threshold):
-    if (bit <= threshold):
-        return 0
-    
-    if (bit >= 255-threshold):
-        return 1
-    
-    else:
-        return np.nan
-
-
-# helper function
 # Zum ausrechnen der IDs
-def get_detected_id(id, threshold):
-        
-    # Umrechnen in binary array [0,1,1,1,0,1,1,1,0,0,0,1]
-    # Ids die nicht umgerechnet werden können, weil außerhalb des threshold, werden NAN
-    binary_id = [get_binary_bit(i, threshold) for i in id]
+def get_detected_id(bits):
 
-    decimal_id = np.nan
+	# Umrechnen in binary array [0,1,1,1,0,1,1,1,0,0,0,1]
+	bits = np.array(bits)
+	bits = bits/255
+	binary_id = [int(x > 0.5) for x in bits]
 
-    if not np.isnan(binary_id).any():
-        # convert to decimal id using 11 least significant bits
-        decimal_id = int(''.join([str(c) for c in binary_id[:11]]), 2)
+	decimal_id = int(''.join([str(c) for c in binary_id[:11]]), 2)
 
-        # determine what kind of parity bit was used and add 2^11 to decimal id
-        # uneven parity bit was used
-        if ((sum(binary_id) % 2) == 1):
-            decimal_id += 2048
+	# determine what kind of parity bit was used and add 2^11 to decimal id
+	# uneven parity bit was used
+	if ((sum(binary_id) % 2) == 1):
+		decimal_id += 2048
 
-    return decimal_id
+	return decimal_id
 
+
+def get_confidence(bits):
+	# 12 bits mit Werten zwischen 0 und 256
+	bits = np.array(bits)
+	bits = bits/255
+
+	return np.min(np.abs(0.5 - bits)) * 2
 
 # Dezimale ID ausrechnen und an DataFrame angängen
 def calcIds(df, threshold):
-	print("\n### calc Ids with threshold = {}".format(threshold))
-	print('Number of Detections before calcualting IDs: {}'.format(df.shape[0]))
-	df['id'] = df.decodedId.apply(get_detected_id, args=(threshold,))
+	print('\n### Calc IDs with threshold: {}'.format(threshold))
+	print('#Detections before calcualting IDs: {}'.format(df.shape[0]))
+
+	# calc confidence value
+		# 0...256 in 0...1 umrechnen
+		# fuer jedes bit abstand zu 0.5 berechnen und dann minimum behalten
+	# add confidence value to dataframe as column
+	df = df.assign(confidence = df.decodedId.apply(get_confidence))
+
+	# die detections entfernen die nicht  die nicht gut genug sind
+	df = df[df.confidence >= threshold]
+
+	# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
+	df = df.assign(id = df.decodedId.apply(get_detected_id))
+
 	df = df.drop('decodedId', 1)
-	df = df.dropna()
+
 	print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
 
@@ -119,7 +123,6 @@ def get_edges(df):
 	gr = df.groupby(df.columns.tolist(),as_index=False).size()
 	print("Number of unique close bee pairs: {}".format(df.shape[0]))
 	return gr
-
 
 # fills gaps of:
 # 101010011 ->
@@ -197,19 +200,23 @@ def create_graph(gr, filename):
 ###########
 ###########
 
-# path = "../00_Data/testset_2015_1h/2015102215"
-path = "../00_Data/testset_2015_1h/2015082215"
-# path = "../00_Data/testset_2015_1h/2015092215"
+path1 = "../00_Data/testset_2015_1h/2015082215"
+path2 = "../00_Data/testset_2015_1h/2015092215"
+path3 = "../00_Data/testset_2015_1h/2015102215"
 
-fc = get_fc(path, 0)
-df = get_dataframe(fc)
-df = calcIds(df, 30)
+l = [path1, path2, path3]
 
-#df = correct_bees_timeframes(df)
+for path in l[:1]:
 
-df = get_close_bees(df, 150)
-df = get_edges(df)	
+	fc = get_fc(path, 3)
+	df = get_dataframe(fc)
+	df = calcIds(df, 0.9)
 
-G = create_graph(df, "2015082215")
+	#df = correct_bees_timeframes(df)
 
-print(df.head(10))
+	#df = get_close_bees(df, 150)
+	#df = get_edges(df)	
+
+	#G = create_graph(df, "2015082215")
+
+	print(df.head(2))
