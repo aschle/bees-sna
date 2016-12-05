@@ -6,10 +6,11 @@ from bb_binary import FrameContainer, Repository, load_frame_container
 from pandas import DataFrame, Series
 
 
+
 # Eine Datei von einer Kamera holen und ein filecontainer
-# zurückgeben
+# zurueckgeben
 def get_fc(path, camId):
-	print("\n### get frame container from {} for cam {}".format(path,camId))
+	print("\n### file {} cam {}".format(path,camId))
 	
 	repo = Repository(path)
 	file = list(repo.iter_fnames(cam=camId))[0]
@@ -19,7 +20,7 @@ def get_fc(path, camId):
 
 # Create dataframe from framecontainer and return dataframe
 def get_dataframe(fc):
-	print("\n### get dataframe")
+	#print("\n### get dataframe")
 
 	df = DataFrame()
 	
@@ -41,8 +42,8 @@ def get_dataframe(fc):
 		'radius',
 		'yRotation'], axis=1, inplace=True)
 
-	print('Number of Frames: {}'.format(len(df.index.levels[1])))
-	print('Number of Detections: {}'.format(df.shape[0]))
+#	print('Number of Frames: {}'.format(len(df.index.levels[1])))
+#	print('Number of Detections: {}'.format(df.shape[0]))
 	return df
 
 
@@ -72,10 +73,10 @@ def get_confidence(bits):
 
 	return np.min(np.abs(0.5 - bits)) * 2
 
-# Dezimale ID ausrechnen und an DataFrame angängen
+# Dezimale ID ausrechnen und an DataFrame angaengen
 def calcIds(df, threshold):
-	print('\n### Calc IDs with threshold: {}'.format(threshold))
-	print('#Detections before calcualting IDs: {}'.format(df.shape[0]))
+	# print('\n### Calc IDs with threshold: {}'.format(threshold))
+	#print('#Detections before calcualting IDs: {}'.format(df.shape[0]))
 
 	# calc confidence value
 		# 0...256 in 0...1 umrechnen
@@ -91,37 +92,66 @@ def calcIds(df, threshold):
 
 	df = df.drop('decodedId', 1)
 
-	print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
+	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
 
 
 def get_close_bees(df, distance):
-	print("\n### get close ({}) bees".format(distance))
-	print('Number of Detections before keeping close bees pairs: {}'.format(df.shape[0]))
-	df['key'] = 1
-	gr = df.groupby(level = 'frame_idx')
+	#print("\n### get close ({}) bees".format(distance))
+	#print('Number of Detections before keeping close bees pairs: {}'.format(df.shape[0]))
 
-	merged = DataFrame()
+	df = df.reset_index(level = 'frame_idx')
 
-	for i, g in gr:
-	    cartprodukt = pd.merge(g, g, on='key')
-	    merged = pd.concat([merged, cartprodukt])
+	m = pd.merge(df, df, on='frame_idx')
+	m = m[m.id_x < m.id_y]
 
-	merged = merged[merged.id_x < merged.id_y]
-	merged = merged.drop('key', axis=1)
-	merged.loc[:, 'dist'] = np.sqrt(np.square(merged.xpos_x - merged.xpos_y) \
-		+ np.square(merged.ypos_x - merged.ypos_y))
+	m.loc[:, 'dist'] = np.sqrt(np.square(m.xpos_x - m.xpos_y) \
+		+ np.square(m.ypos_x - m.ypos_y))
 
-	print('Number of all bee pairs: {}'.format(merged.shape[0]))
-	filtered = merged[merged.dist <= distance]
-	print('Number of close bee pairs: {}'.format(filtered.shape[0]))
+	#print('Number of all bee pairs: {}'.format(m.shape[0]))
+	filtered = m[m.dist <= distance]
+	#print('Number of close bee pairs: {}'.format(filtered.shape[0]))
 	return filtered
 
+def get_ketten(kette, val):
+	counter = 0
+	laengen = []
+	for i in list(range(len(kette))):
+		if (kette[i] == val):
+			counter = counter + 1
+		else:
+			if (counter > 0):
+				laengen.append(counter)
+				counter = 0
+	if (counter > 0):
+		laengen.append(counter)
+
+	return laengen
+
+def bee_pairs_to_timeseries(df):
+	close = df[['frame_idx', 'id_x', 'id_y']]
+	close = close.set_index(['frame_idx'])
+	close['pair'] = list(zip(close.id_x, close.id_y))
+	u_pairs = close.pair.unique()
+	dft = DataFrame(0, index=u_pairs, columns=np.arange(1024))
+	gr = close.groupby(level='frame_idx')
+
+	for i, group in gr:
+		l = group['pair']
+		dft.loc[l,i] = 1
+
+	kette1 = dft.apply(get_ketten, axis=1, args=[1])
+
+	# keep values over 3 and count length of arrays
+	k = kette1.apply(lambda x: len([item for item in x if item>3]))
+	filteredout = k[k > 0]
+	print(type(filteredout))
+	return filteredout
 
 def get_edges(df):
 	df = df[['id_x', 'id_y']]
-	gr = df.groupby(df.columns.tolist(),as_index=False).size()
-	print("Number of unique close bee pairs: {}".format(df.shape[0]))
+	gr = df.groupby(df.columns.tolist(), as_index=False).size()
+	print("Number of unique close bee pairs: {}".format(gr.shape[0]))
 	return gr
 
 # fills gaps of:
@@ -138,35 +168,26 @@ def fill_gaps(ll):
     return ll
 
 
-# reshape to columns as timeframes, rows as bee ids
-# 		t1  t2  t3 t4 ...
-# bee1   1   1   0  1 ...
-# bee2   0   0   1  0 ...
-# ...
-# correct it (fill gaps) and then shape it back again
-#
-def correct_bees_timeframes(df):
-
+def df_to_timeseries(df):
 	gr = df.groupby(level='frame_idx')
+	num_columns = len((df.index.get_level_values('frame_idx')).unique())
+
+	# levels wegschmeissen
+	df = df.reset_index(level = ['fc_id', 'frame_idx', 'idx'], drop=False )
 
 	# get all unique ids von allen Frames
 	u_id = df.id.unique()
 
-	# das mit der 1024 ändern, das ist so doof
-	dft = DataFrame(0, index=u_id, columns=np.arange(1024))
+	dft = DataFrame(0, index=u_id, columns=np.arange(num_columns))
 
 	for i, group in gr:
 		l = group['id']
 		dft.loc[l,i] = 1
 
-	print("Reshaped to columns as timeframes and rows as bees!")
-	print(dft.shape)
+	return dft
 
-	# Correct gaps, fill gaps of length 1 with a one
-	# 101001101 -> 111001111
 
-	dft = dft.apply(fill_gaps, axis=1)
-	#dft['total'] = dft.sum(axis=1)
+def timeseries_to_df(dft, df):
 
 	# Zurueckumwandeln in urspruegliches Format: Dabei muessen aber die neu 
 	# entstandenen Bienen zu bestimmten Zeitpunkten eingebaut werden.
@@ -177,11 +198,60 @@ def correct_bees_timeframes(df):
 	#		
 	# t2  bee2 xpos ypos ...
 	#     bee3 xpos ypos ...
-	#     ... 
+	#     ...
+
+	df = df.reset_index(['frame_idx', 'fc_id', 'idx'])
+	final = DataFrame()
+
+	for col in list(range(dft.shape[1])):
+	
+		# die indexes wo ne eins steht merken
+		l = dft[dft[col] == 1].index.tolist()
+
+		for item in l:
+			# print("{}-{}".format(col,item))
+			# element zum timeframe rausholen
+			tfe = df[df.frame_idx == col]
+			if (tfe[tfe['id'] == item].shape[0] > 0):            
+				final = pd.concat([final, tfe[tfe['id'] == item]])
+			else:
+				pre = df[df.frame_idx == col-1]
+				predict = pre[pre['id'] == item]
+	            
+				post = df[df.frame_idx == col+1]
+				postdict = post[post['id'] == item]
+	            
+				x = (list(predict['xpos'])[0] + list(postdict['xpos'])[0])/2
+				y = (list(predict['ypos'])[0] + list(postdict['ypos'])[0])/2
+				row = pd.DataFrame({
+					'frame_idx': col,
+					'id':item,
+					'xpos':x,
+					'ypos':y,
+					'timestamp': list(predict['timestamp'])[0],
+					'fc_id': list(predict['fc_id'])[0],
+					'cam_id': list(predict['cam_id'])[0]},
+					index = [col])
+				final = final.append(row)
+
+	final = final.set_index(['frame_idx'])
+
+	return final
 
 
+# reshape to columns as timeframes, rows as bee ids
+# 		t1  t2  t3 t4 ...
+# bee1   1   1   0  1 ...
+# bee2   0   0   1  0 ...
+# ...
+# correct it (fill gaps) and then shape it back again
+#
+def correct_bees_timeframes(df):
+	dft = df_to_timeseries(df)
+	dft = dft.apply(fill_gaps, axis=1)
+	df_corrected = timeseries_to_df(dft, df)
+	return df_corrected
 
-	return dft
 
 def create_graph(gr, filename):
 	G = nx.Graph()
@@ -189,7 +259,8 @@ def create_graph(gr, filename):
 	df = df.reset_index(level=['id_x', 'id_y'])
 
 	for row in df.itertuples():
-		G.add_edge(int(row[0]), int(row[1]), weight=int(row[2]))
+		print(row)
+		G.add_edge(int(row[1]), int(row[2]), weight=int(row[3]))
 	
 	print(nx.info(G))
 
@@ -197,26 +268,54 @@ def create_graph(gr, filename):
 
 	return G
 
+def create_graph2(pairs, filename):
+	G = nx.Graph()
+
+	for elem in pairs.iteritems():
+		G.add_edge(int(elem[0][0]), int(elem[0][1]), weight=int(elem[1]))
+	print(nx.info(G))
+
+	nx.write_graphml(G, filename + ".graphml")
+
+
 ###########
 ###########
 
-path1 = "../00_Data/testset_2015_1h/2015082215"
-path2 = "../00_Data/testset_2015_1h/2015092215"
-path3 = "../00_Data/testset_2015_1h/2015102215"
+if __name__ == '__main__':
 
-l = [path1, path2, path3]
+	CONFIDENCE = 0.9
+	DISTANCE = 150
+	CAMS = 4
 
-for path in l[:1]:
+	path1 = "../00_Data/testset_2015_1h/2015082215"
+	path2 = "../00_Data/testset_2015_1h/2015092215"
+	path3 = "../00_Data/testset_2015_1h/2015102215"
 
-	fc = get_fc(path, 3)
-	df = get_dataframe(fc)
-	df = calcIds(df, 0.9)
+	l = [path1, path2, path3]
+	l = [path1]
 
-	#df = correct_bees_timeframes(df)
+	for path in l:
 
-	#df = get_close_bees(df, 150)
-	#df = get_edges(df)	
+		pairs = Series()
 
-	#G = create_graph(df, "2015082215")
+		for i in list(range(CAMS)):
+			fc = get_fc(path, i)
+			df = get_dataframe(fc)
+			df = calcIds(df, CONFIDENCE)
 
-	print(df.head(2))
+			df = correct_bees_timeframes(df)
+
+			df = get_close_bees(df, DISTANCE)
+
+			p = bee_pairs_to_timeseries(df)
+			print(p.shape[0])
+			pairs = pairs.append(p)
+
+			# macht die haufigkeit *wie viel frames als gewicht
+			#df = get_edges(df)	
+
+			#G = create_graph(df, "2015082215")
+		
+		G = create_graph2(pairs, "2015082215-6min-{}cams-{}-{}".format(CAMS, DISTANCE, str(CONFIDENCE).replace('.','')))
+
+		print(pairs)
