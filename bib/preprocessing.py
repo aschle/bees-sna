@@ -4,7 +4,7 @@ import networkx as nx
 
 from bb_binary import FrameContainer, Repository, load_frame_container
 from pandas import DataFrame, Series
-
+from scipy import spatial
 
 
 # Eine Datei von einer Kamera holen und ein filecontainer
@@ -95,8 +95,7 @@ def calcIds(df, threshold):
 	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
 
-
-def get_close_bees(df, distance):
+def get_close_bees_old(df, distance):
 	#print("\n### get close ({}) bees".format(distance))
 	#print('Number of Detections before keeping close bees pairs: {}'.format(df.shape[0]))
 
@@ -111,7 +110,24 @@ def get_close_bees(df, distance):
 	#print('Number of all bee pairs: {}'.format(m.shape[0]))
 	filtered = m[m.dist <= distance]
 	#print('Number of close bee pairs: {}'.format(filtered.shape[0]))
+	filtered = filtered[['frame_idx','id_x', 'id_y']]
 	return filtered
+
+
+def get_close_bees(df, distance):
+
+	df_close = DataFrame()
+
+	gr = df.groupby(level='frame_idx')
+
+	for i, group in gr:
+		xy_coordinates = group[['xpos', 'ypos']].values
+		tree = spatial.KDTree(xy_coordinates)
+		result = tree.query_pairs(distance)
+		l = [[i,group['id'].iat[a],group['id'].iat[b]] for a,b in result]
+		df_close = df_close.append(DataFrame(l, columns=['frame_idx', 'id_x', 'id_y']))
+
+	return df_close
 
 def get_ketten(kette, val):
 	counter = 0
@@ -143,9 +159,8 @@ def bee_pairs_to_timeseries(df):
 	kette1 = dft.apply(get_ketten, axis=1, args=[1])
 
 	# keep values over 3 and count length of arrays
-	k = kette1.apply(lambda x: len([item for item in x if item>3]))
+	k = kette1.apply(lambda x: len([item for item in x if item>2]))
 	filteredout = k[k > 0]
-	print(type(filteredout))
 	return filteredout
 
 def get_edges(df):
@@ -284,7 +299,7 @@ def create_graph2(pairs, filename):
 if __name__ == '__main__':
 
 	CONFIDENCE = 0.9
-	DISTANCE = 150
+	DISTANCE = 160
 	CAMS = 4
 
 	path1 = "../00_Data/testset_2015_1h/2015082215"
@@ -292,7 +307,7 @@ if __name__ == '__main__':
 	path3 = "../00_Data/testset_2015_1h/2015102215"
 
 	l = [path1, path2, path3]
-	l = [path1]
+	l = [path3]
 
 	for path in l:
 
@@ -303,19 +318,20 @@ if __name__ == '__main__':
 			df = get_dataframe(fc)
 			df = calcIds(df, CONFIDENCE)
 
-			df = correct_bees_timeframes(df)
+			#df = correct_bees_timeframes(df)
 
-			df = get_close_bees(df, DISTANCE)
+			df = get_close_bees_old(df, DISTANCE)
+			print(df.shape)
 
 			p = bee_pairs_to_timeseries(df)
 			print(p.shape[0])
 			pairs = pairs.append(p)
 
-			# macht die haufigkeit *wie viel frames als gewicht
-			#df = get_edges(df)	
+			## macht die haufigkeit *wie viel frames als gewicht
+			##df = get_edges(df)	
 
 			#G = create_graph(df, "2015082215")
 		
-		G = create_graph2(pairs, "2015082215-6min-{}cams-{}-{}".format(CAMS, DISTANCE, str(CONFIDENCE).replace('.','')))
+		G = create_graph2(pairs, "2015102215-6min-{}cams-{}-{}-3".format(CAMS, DISTANCE, str(CONFIDENCE).replace('.','')))
 
-		print(pairs)
+		#print(pairs)
