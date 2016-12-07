@@ -3,3 +3,6 @@ _posts
 data
 2015
 00_Data/*
+*.graphml
+*.gexf
+*.edgelist

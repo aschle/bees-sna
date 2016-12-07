@@ -5,46 +5,33 @@ import networkx as nx
 from bb_binary import FrameContainer, Repository, load_frame_container
 from pandas import DataFrame, Series
 from scipy import spatial
+from collections import namedtuple
 
 
 # Eine Datei von einer Kamera holen und ein filecontainer
 # zurueckgeben
 def get_fc(path, camId):
-	print("\n### file {} cam {}".format(path,camId))
+	print("file {} cam {}".format(path,camId))
 	
 	repo = Repository(path)
-	file = list(repo.iter_fnames(cam=camId))[0]
+	file = list(repo.iter_fnames(	))[0]
 	fc = load_frame_container(file)
 	return fc
 
 
 # Create dataframe from framecontainer and return dataframe
 def get_dataframe(fc):
-	#print("\n### get dataframe")
-
-	df = DataFrame()
 	
+	detection = namedtuple('Detection', ['idx','xpos','ypos',
+		'radius','decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
+
+	l = []
 	for f in fc.frames:
-
-		det = DataFrame([d.to_dict() for d in f.detectionsUnion.detectionsDP])
-		det['frame_idx'] = f.frameIdx
-		det['timestamp'] = f.timestamp
-		det['cam_id'] = fc.camId
-		det['fc_id'] = fc.id
-		det = det.set_index(['fc_id', 'frame_idx', 'idx'])
-		df = pd.concat([df, det])
-
-	df.drop(['descriptor',
-		'localizerSaliency',
-		'xposHive',
-		'yposHive',
-		'xRotation',
-		'radius',
-		'yRotation'], axis=1, inplace=True)
-
-#	print('Number of Frames: {}'.format(len(df.index.levels[1])))
-#	print('Number of Detections: {}'.format(df.shape[0]))
-	return df
+		tpls = [detection(d.idx, d.xpos, d.ypos, d.radius, list(d.decodedId),
+			f.frameIdx, f.timestamp, fc.camId, fc.id)
+			for d in f.detectionsUnion.detectionsDP]
+		l.append(pd.DataFrame(tpls))
+	return pd.concat(l)
 
 
 # helper function
@@ -95,54 +82,43 @@ def calcIds(df, threshold):
 	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
 
-def get_close_bees_old(df, distance):
-	#print("\n### get close ({}) bees".format(distance))
-	#print('Number of Detections before keeping close bees pairs: {}'.format(df.shape[0]))
+def get_close_bees(df, distance):
 
 	df = df.reset_index(level = 'frame_idx')
 
 	m = pd.merge(df, df, on='frame_idx')
+	#m = m.query('id_x < id_y')
 	m = m[m.id_x < m.id_y]
 
-	m.loc[:, 'dist'] = np.sqrt(np.square(m.xpos_x - m.xpos_y) \
-		+ np.square(m.ypos_x - m.ypos_y))
+	m.loc[:, 'dist'] = np.square(m.xpos_x - m.xpos_y) \
+		+ np.square(m.ypos_x - m.ypos_y)
 
-	#print('Number of all bee pairs: {}'.format(m.shape[0]))
-	filtered = m[m.dist <= distance]
-	#print('Number of close bee pairs: {}'.format(filtered.shape[0]))
+	filtered = m[m.dist <= distance**2]
+
 	filtered = filtered[['frame_idx','id_x', 'id_y']]
 	return filtered
 
-
-def get_close_bees(df, distance):
+# Depricated
+def get_close_bees_kd(df, distance):
 
 	df_close = DataFrame()
 
-	gr = df.groupby(level='frame_idx')
+	gr = df.groupby('frame_idx')
 
 	for i, group in gr:
 		xy_coordinates = group[['xpos', 'ypos']].values
-		tree = spatial.KDTree(xy_coordinates)
+		tree = spatial.KDTree(xy_coordinates, leafsize=20)
 		result = tree.query_pairs(distance)
-		l = [[i,group['id'].iat[a],group['id'].iat[b]] for a,b in result]
+		l = [[i,group['id'].iat[a], group['id'].iat[b]] for a,b in result]
 		df_close = df_close.append(DataFrame(l, columns=['frame_idx', 'id_x', 'id_y']))
 
 	return df_close
 
 def get_ketten(kette, val):
-	counter = 0
-	laengen = []
-	for i in list(range(len(kette))):
-		if (kette[i] == val):
-			counter = counter + 1
-		else:
-			if (counter > 0):
-				laengen.append(counter)
-				counter = 0
-	if (counter > 0):
-		laengen.append(counter)
-
-	return laengen
+    kette = kette.apply(str)
+    s = kette.str.cat(sep='')
+    ss = s.split('0')
+    return [x for x in ss if len(x) > 0]
 
 def bee_pairs_to_timeseries(df):
 	close = df[['frame_idx', 'id_x', 'id_y']]
@@ -156,12 +132,13 @@ def bee_pairs_to_timeseries(df):
 		l = group['pair']
 		dft.loc[l,i] = 1
 
-	kette1 = dft.apply(get_ketten, axis=1, args=[1])
+	return dft
 
-	# keep values over 3 and count length of arrays
-	k = kette1.apply(lambda x: len([item for item in x if item>2]))
-	filteredout = k[k > 0]
-	return filteredout
+def extract_interactions(dft, minlength):
+    kette = dft.apply(get_ketten, axis=1, args=[1])
+    kk = kette.apply(lambda x: [len(item) for item in x])
+    kk = kk.apply(lambda x: len([item for item in x if item >= minlength]))
+    return kk[kk > 0]
 
 def get_edges(df):
 	df = df[['id_x', 'id_y']]
@@ -283,14 +260,15 @@ def create_graph(gr, filename):
 
 	return G
 
-def create_graph2(pairs, filename):
+def create_graph2(pairs):
 	G = nx.Graph()
 
 	for elem in pairs.iteritems():
 		G.add_edge(int(elem[0][0]), int(elem[0][1]), weight=int(elem[1]))
-	print(nx.info(G))
+	#print(nx.info(G))
 
-	nx.write_graphml(G, filename + ".graphml")
+	# nx.write_graphml(G, filename + ".graphml")
+	return G
 
 
 ###########
