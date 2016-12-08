@@ -1,5 +1,3 @@
-#def f(c,d,m,l):
-
 #!/usr/bin/python
 
 import sys
@@ -16,9 +14,9 @@ d = int(sys.argv[2])
 m = sys.argv[3]
 l = int(sys.argv[4])
 
-filename = "{}month-{}dist-{}conf-{}len".format(m,d,c,l)
+filename = "{}month-{}dist-{}conf-{}len".format(m,d,str(c).replace('.',''),l)
 
-f = "../00_Data/testset_2015_1h/"
+f = "../../data/1h/"
 p = "2015" + m + "2215"
 
 CONFIDENCE = c
@@ -34,7 +32,6 @@ fc0 = prep.get_fc(path,0)
 fc1 = prep.get_fc(path,1)
 fc2 = prep.get_fc(path,2)
 fc3 = prep.get_fc(path,3)
-
 
 df3 = prep.get_dataframe(fc3)
 df3 = prep.calcIds(df3,CONFIDENCE)

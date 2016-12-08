@@ -14,7 +14,7 @@ def get_fc(path, camId):
 	print("file {} cam {}".format(path,camId))
 	
 	repo = Repository(path)
-	file = list(repo.iter_fnames(	))[0]
+	file = list(repo.iter_fnames(cam=camId))[0]
 	fc = load_frame_container(file)
 	return fc
 
