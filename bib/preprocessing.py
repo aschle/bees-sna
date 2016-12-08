@@ -117,7 +117,7 @@ def get_close_bees_kd(df, distance):
 def get_ketten(kette, val):
     kette = kette.apply(str)
     s = kette.str.cat(sep='')
-    ss = s.split('0')
+    ss = s.split(val)
     return [x for x in ss if len(x) > 0]
 
 def bee_pairs_to_timeseries(df):
