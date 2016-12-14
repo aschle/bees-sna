@@ -122,11 +122,10 @@ def get_ketten(kette, val):
 
 def bee_pairs_to_timeseries(df):
 	close = df[['frame_idx', 'id_x', 'id_y']]
-	close = close.set_index(['frame_idx'])
 	close['pair'] = list(zip(close.id_x, close.id_y))
 	u_pairs = close.pair.unique()
 	dft = DataFrame(0, index=u_pairs, columns=np.arange(1024))
-	gr = close.groupby(level='frame_idx')
+	gr = close.groupby('frame_idx')
 
 	for i, group in gr:
 		l = group['pair']
@@ -135,7 +134,7 @@ def bee_pairs_to_timeseries(df):
 	return dft
 
 def extract_interactions(dft, minlength):
-    kette = dft.apply(get_ketten, axis=1, args=[1])
+    kette = dft.apply(get_ketten, axis=1, args=["0"])
     kk = kette.apply(lambda x: [len(item) for item in x])
     kk = kk.apply(lambda x: len([item for item in x if item >= minlength]))
     return kk[kk > 0]
@@ -269,6 +268,26 @@ def create_graph2(pairs):
 
 	# nx.write_graphml(G, filename + ".graphml")
 	return G
+
+def network_statistics(g):
+	nodes = nx.number_of_nodes(G)
+	edges = nx.number_of_edges(G)
+	degrees = G.degree().values()
+	average_degree = sum(degrees)/nodes
+	density = nx.density(G)
+	cc = nx.average_clustering(G)
+	components = nx.number_connected_components(G)
+    
+	# only for biggest subgraph
+	Gcc = sorted(nx.connected_component_subgraphs(G), key = len, reverse=True)
+	G0 = Gcc[0]
+	average_shortest_path = nx.average_shortest_path_length(G0)
+	diameter = nx.diameter(G0)
+
+	return {'nodes': nodes, 'edges': edges, 'av_deg': average_degree,
+	'density': density, 'cc': cc, 'components': components,
+	'diameter': diameter, 'av_shortest_path':average_shortest_path,
+	'degree': degrees}
 
 
 ###########

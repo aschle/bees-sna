@@ -7,26 +7,10 @@ import networkx as nx
 from bb_binary import FrameContainer, Repository, load_frame_container
 from pandas import DataFrame, Series
 
-
-c = float(sys.argv[1])
-d = int(sys.argv[2])
-m = sys.argv[3]
-l = int(sys.argv[4])
-
-filename = "{}month-{}dist-{}conf-{}len-1h".format(m,d,str(c).replace('.',''),l)
-
-f = "../../data/1h/"
-p = "2015" + m + "2215"
-
-CONFIDENCE = c
-DISTANCE = d
-
-xmax = 3000
-ymax = 4000
-LENGTH = l
-
-path = f+p
-
+# c = float(sys.argv[1])
+# d = int(sys.argv[2])
+# m = sys.argv[3]
+# l = int(sys.argv[4])
 
 def get_files(path):
 	repo = Repository(path)
@@ -35,7 +19,6 @@ def get_files(path):
 	l = len(a)/4
 	npa = np.array(file).reshape(int(l),4)
 	return npa
-
 
 files = get_files(path)
 
