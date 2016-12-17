@@ -33,13 +33,37 @@ def get_dataframe(fc):
 		l.append(pd.DataFrame(tpls))
 	return pd.concat(l)
 
+Detection = namedtuple(
+    'Detection',
+    ['idx', 'xpos', 'ypos', 'radius', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id']
+)
+
+def get_dataframe2(fcs):
+    """
+    Converts framecontainer(s) to a dataframe. Uses fixed columns.
+    :param fcs: One or multiple framecontainer
+    :return: Pandas Dataframe
+    """
+    if not isinstance(fcs, (tuple, list)):
+        fcs = fcs,
+
+    tpls = []
+    for fc in fcs:
+        for f in fc.frames:
+            for d in f.detectionsUnion.detectionsDP:
+                d = Detection(d.idx, d.xpos, d.ypos, d.radius, list(d.decodedId), f.frameIdx, f.timestamp, fc.camId, fc.id)
+                tpls.append(d)
+
+    df = pd.DataFrame(tpls)
+    return df
+
 
 # helper function
 # Zum ausrechnen der IDs
 def get_detected_id(bits):
 
-    binary_id = (bits>0.5)*1
-    decimal_id = int(''.join([str(c) for c in binary_id.tolist()[:11]]), 2)
+	binary_id = (bits>0.5)*1
+	decimal_id = int(''.join([str(c) for c in binary_id.tolist()[:11]]), 2)
 
 	# determine what kind of parity bit was used and add 2^11 to decimal id
 	# uneven parity bit was used
