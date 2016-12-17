@@ -38,12 +38,8 @@ def get_dataframe(fc):
 # Zum ausrechnen der IDs
 def get_detected_id(bits):
 
-	# Umrechnen in binary array [0,1,1,1,0,1,1,1,0,0,0,1]
-	bits = np.array(bits)
-	bits = bits/255
-	binary_id = [int(x > 0.5) for x in bits]
-
-	decimal_id = int(''.join([str(c) for c in binary_id[:11]]), 2)
+    binary_id = (bits>0.5)*1
+    decimal_id = int(''.join([str(c) for c in binary_id.tolist()[:11]]), 2)
 
 	# determine what kind of parity bit was used and add 2^11 to decimal id
 	# uneven parity bit was used
@@ -55,15 +51,11 @@ def get_detected_id(bits):
 
 def get_confidence(bits):
 	# 12 bits mit Werten zwischen 0 und 256
-	bits = np.array(bits)
-	bits = bits/255
-
 	return np.min(np.abs(0.5 - bits)) * 2
 
 # Dezimale ID ausrechnen und an DataFrame angaengen
 def calcIds(df, threshold):
-	# print('\n### Calc IDs with threshold: {}'.format(threshold))
-	#print('#Detections before calcualting IDs: {}'.format(df.shape[0]))
+	df.decodedId = df.decodedId.apply(lambda x: np.array(x)/255)
 
 	# calc confidence value
 		# 0...256 in 0...1 umrechnen
@@ -113,6 +105,21 @@ def get_close_bees_kd(df, distance):
 		df_close = df_close.append(DataFrame(l, columns=['frame_idx', 'id_x', 'id_y']))
 
 	return df_close
+
+def get_close_bees_ckd(df, distance):
+
+    df_close = DataFrame()
+
+    gr = df.groupby('frame_idx')
+
+    for i, group in gr:
+        xy_coordinates = group[['xpos', 'ypos']].values
+        tree = spatial.cKDTree(xy_coordinates, leafsize=20)
+        result = tree.query_pairs(distance)
+        l = [[i,group['id'].iat[a], group['id'].iat[b]] for a,b in result]
+        df_close = df_close.append(DataFrame(l, columns=['frame_idx', 'id_x', 'id_y']))
+
+    return df_close
 
 def get_ketten(kette, val):
     kette = kette.apply(str)
