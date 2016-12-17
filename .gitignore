@@ -1,5 +1,6 @@
+LICENSE
 Gemfile
-.lock
+*.lock
 _site
 _posts
 data
@@ -8,3 +9,4 @@ data
 *.graphml
 *.gexf
 *.edgelist
+__*__
