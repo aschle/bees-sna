@@ -10,7 +10,7 @@ from collections import namedtuple
 
 # Eine Datei von einer Kamera holen und ein filecontainer
 # zurueckgeben
-def get_fc(path, camId):	
+def get_fc(path, camId):
 	repo = Repository(path)
 	file = list(repo.iter_fnames(cam=camId))[0]
 	fc = load_frame_container(file)
@@ -20,20 +20,21 @@ def get_fc(path, camId):
 # Create dataframe from framecontainer and return dataframe
 def get_dataframe(fc):
 	
-	detection = namedtuple('Detection', ['idx','xpos','ypos',
+	detection = namedtuple('Detection', ['idx','xpos','ypos', 'zRotation',
 		'radius','decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
 
 	l = []
 	for f in fc.frames:
-		tpls = [detection(d.idx, d.xpos, d.ypos, d.radius, list(d.decodedId),
+		tpls = [detection(d.idx, d.xpos, d.ypos, d.zRotation, d.radius, list(d.decodedId),
 			f.frameIdx, f.timestamp, fc.camId, fc.id)
 			for d in f.detectionsUnion.detectionsDP]
 		l.append(pd.DataFrame(tpls))
 	return pd.concat(l)
 
+
 Detection = namedtuple(
     'Detection',
-    ['idx', 'xpos', 'ypos', 'radius', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id']
+    ['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id']
 )
 
 def get_dataframe2(fcs):
@@ -49,7 +50,7 @@ def get_dataframe2(fcs):
     for fc in fcs:
         for f in fc.frames:
             for d in f.detectionsUnion.detectionsDP:
-                d = Detection(d.idx, d.xpos, d.ypos, d.radius, list(d.decodedId), f.frameIdx, f.timestamp, fc.camId, fc.id)
+                d = Detection(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), f.frameIdx, f.timestamp, fc.camId, fc.id)
                 tpls.append(d)
 
     df = pd.DataFrame(tpls)
@@ -77,21 +78,22 @@ def get_confidence(bits):
 
 # Dezimale ID ausrechnen und an DataFrame angaengen
 def calcIds(df, threshold):
+	df = df.copy()
 	df.decodedId = df.decodedId.apply(lambda x: np.array(x)/255)
 
 	# calc confidence value
 		# 0...256 in 0...1 umrechnen
 		# fuer jedes bit abstand zu 0.5 berechnen und dann minimum behalten
 	# add confidence value to dataframe as column
-	df = df.assign(confidence = df.decodedId.apply(get_confidence))
+	df.loc[:, 'confidence'] = df.decodedId.apply(get_confidence)
 
 	# die detections entfernen die nicht  die nicht gut genug sind
 	df = df[df.confidence >= threshold]
 
 	# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
-	df = df.assign(id = df.decodedId.apply(get_detected_id))
+	df.loc[:, 'id'] = df.decodedId.apply(get_detected_id)
 
-	df = df.drop('decodedId', 1)
+	df.drop('decodedId', 1, inplace = True)
 
 	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df

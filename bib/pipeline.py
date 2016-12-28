@@ -53,7 +53,7 @@ def generate_network(index, file_list, confidence, distance, ilen):
 	return prep.extract_interactions(p,ilen)
 
 
-def run(p, conf=.95, dist=160, ilen=3, c=None):
+def run(p, conf=.95, dist=160, ilen=3, c=None, filename="template"):
 	path = p
 	confidence = conf
 	distance = dist
@@ -85,20 +85,21 @@ def run(p, conf=.95, dist=160, ilen=3, c=None):
 		edges.append(result.get())
 
 	G = prep.create_graph2(pd.concat(edges))
-	nx.write_graphml(G, "{}graph_{}conf_{}dist_{}ilen".format(filename,confidence, distance, interaction_len) + ".graphml")
+	nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(filename,str(confidence), str(distance), str(interaction_len)) + ".graphml")
 	print(nx.info(G))
 
 
 if __name__ == '__main__':
 
-	if (len(sys.argv) == 6 ):
+	if (len(sys.argv) == 7 ):
 		path = sys.argv[1]		
 		conf = float(sys.argv[2])
 		dist = int(sys.argv[3])
 		ilen = int(sys.argv[4])
 		c = int(sys.argv[5])
+		f = str(sys.argv[6])
 
-		run(path, conf, dist, ilen, c)
+		run(path, conf, dist, ilen, c, f)
 	else:
-		print("Usage:\npython3 pipeline.py <path> <confidence> <radius> <interaction length> <number of processes>")
-		print("Example:\npython3 pipeline.py 'path/to/data' 0.95 160 3 16")
+		print("Usage:\npython3 pipeline.py <path> <confidence> <radius> <interaction length> <number of processes> <filename>")
+		print("Example:\npython3 pipeline.py 'path/to/data' 0.95 160 3 16 myfilename")
