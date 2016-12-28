@@ -57,7 +57,7 @@ def run(p, conf=.95, dist=160, ilen=3, c=None):
 	path = p
 	confidence = conf
 	distance = dist
-	iteraction_len = ilen
+	interaction_len = ilen
 	cpus = c
 
 	# make file file packges
@@ -74,7 +74,7 @@ def run(p, conf=.95, dist=160, ilen=3, c=None):
 	tasks = []
 
 	for e, f in enumerate(files):
-		tasks.append((e, f, confidence, distance, iteraction_len))
+		tasks.append((e, f, confidence, distance, interaction_len))
 
 	results = [pool.apply_async( generate_network, t ) for t in tasks]
 
@@ -85,6 +85,7 @@ def run(p, conf=.95, dist=160, ilen=3, c=None):
 		edges.append(result.get())
 
 	G = prep.create_graph2(pd.concat(edges))
+	nx.write_graphml(G, "{}graph_{}conf_{}dist_{}ilen".format(filename,confidence, distance, interaction_len) + ".graphml")
 	print(nx.info(G))
 
 

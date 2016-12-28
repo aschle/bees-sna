@@ -10,9 +10,7 @@ from collections import namedtuple
 
 # Eine Datei von einer Kamera holen und ein filecontainer
 # zurueckgeben
-def get_fc(path, camId):
-	print("file {} cam {}".format(path,camId))
-	
+def get_fc(path, camId):	
 	repo = Repository(path)
 	file = list(repo.iter_fnames(cam=camId))[0]
 	fc = load_frame_container(file)
