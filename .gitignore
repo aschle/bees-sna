@@ -10,3 +10,4 @@ data
 *.gexf
 *.edgelist
 __*__
+*.db
