@@ -11,3 +11,4 @@ data
 *.edgelist
 __*__
 *.db
+.ipynb_checkpoints
