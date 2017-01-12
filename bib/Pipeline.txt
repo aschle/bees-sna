@@ -1,0 +1,48 @@
+PIPELINE
+--------
+
+Input:
+eine bbbinary datei (d.h ein Kamerabild, 1024 frames)
+
+Output:
+Liste an Kanten mit Gewichten
+
+
+SCHRITTE
+
+* Datei einlesen
+----------------
+ein FrameContainer mit genau einer camId holen
+
+
+* DataFrame bauen
+-----------------
+pro Frame alle Detections zusammanbauen
+
+
+* Calulate dezimal IDs
+----------------------
+using a threshold of whatever
+ids berechnen und die detections wegwerfen wo kein ID rauskommt
+
+
+* Get close bee pairs
+---------------------
+pro Frame Abstand aller Bienen bestimmen
+nur die, die unter einem bestimmten Wert sind behalten, Rest wegwerfen
+
+
+* Edges zusammenbauen
+---------------------
+Bienenpärchen mit Gewichtung als Liste
+
+
+Things TODO:
+------------
+Duration of Interaction!
+- Glätten
+entweder sich das Vorkommen von einer Biene über alle Frames anschauen und dann glätten (101011001)
+- auf den korrigierten Dingen dann die Pärchen anschauen
+- sich dann überlegen wie es weitergeht!
+
+
