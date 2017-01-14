@@ -300,7 +300,7 @@ def create_graph2(pairs):
 	# nx.write_graphml(G, filename + ".graphml")
 	return G
 
-def network_statistics(g):
+def network_statistics(G):
 	nodes = nx.number_of_nodes(G)
 	edges = nx.number_of_edges(G)
 	degrees = G.degree().values()
