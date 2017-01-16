@@ -31,7 +31,7 @@ def generate_network(index, file, confidence, ilens, distances):
 
 		for ilen in ilens:
 			r = prep.extract_interactions(p,ilen)
-			restult.append((ilen,distance,r))
+			result.append((ilen,distance,r))
 
 	return result
 
@@ -70,7 +70,7 @@ def run(p, conf=.95, c=None, filename="template", camid=0):
 		reslist = result.get()
 
 		for i,d,r in reslist:
-			edges[(i,d)].extend(r)
+			edges[(i,d)].append(r)
 
 	for i,d in edges:
 		G = prep.create_graph2(pd.concat(edges[(i,d)]))
