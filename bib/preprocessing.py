@@ -293,11 +293,13 @@ def create_graph(gr, filename):
 def create_graph2(pairs):
 	G = nx.Graph()
 
-	for elem in pairs.iteritems():
-		G.add_edge(int(elem[0][0]), int(elem[0][1]), weight=int(elem[1]))
-	#print(nx.info(G))
+	df = DataFrame(pairs, columns=["pair", "weight"])
+	edges = df.groupby(by="pair").sum()
+	edges = edges.reset_index()
 
-	# nx.write_graphml(G, filename + ".graphml")
+	for index, x in edges.iterrows():
+		G.add_edge(x.pair[0], x.pair[1], weight=x.weight)
+
 	return G
 
 def network_statistics(G):
