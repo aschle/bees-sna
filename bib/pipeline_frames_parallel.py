@@ -63,14 +63,13 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
     return prep.extract_interactions(p,ilen)
 
 
-if __name__ == '__main__':
-    # In[7]:
+def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3, c=None, filename="template"):
 
-    p = "/mnt/data/2015082215/"
-    c = .99
-    dist = 160
-    ilen = 6
-    cpus = 8
+    p = path
+    c = confidence
+    dist = distance
+    ilen = interaction_len
+    cpus = c
 
     pool = multiprocessing.Pool(cpus)
 
@@ -78,11 +77,11 @@ if __name__ == '__main__':
 
 
     number_hours = 1*60*60 #number of hours in total in seconds
-    slice_len = 10*60   #number of minutes per slice
+    slice_len = 6*60   #number of minutes per slice
 
-    m="08"
-    d="22"
-    h="15"
+    m = month
+    d = day
+    h = hour
     begin = "2015-{}-{}T{}:00:00Z".format(m,d,h) # %Y-%m-%dT%H:%M:%SZ
     begin_ts = datetime.datetime.timestamp(datetime.datetime.strptime(begin, "%Y-%m-%dT%H:%M:%SZ"))
 
@@ -95,10 +94,10 @@ if __name__ == '__main__':
         e = (b-0.1) + (slice_len)
         tasks.append((enu, p, b, e, c, dist, ilen))
 
-    results = [pool.apply_async( generate_network, t ) for t in tasks]
+    results = [pool.apply_async( generate_network, t ) for t in tasks[:1]]
 
 
-    filename = "testframes-2015082215"
+    filename = "{}-{}-{}-1h-allCams"
 
 
     edges = []
@@ -108,5 +107,24 @@ if __name__ == '__main__':
         print("Appended Result.")
 
     G = prep.create_graph2(pd.concat(edges))
-    nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(filename,str(c), str(dist), str(ilen)) + ".graphml")
+    nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(filename, str(c), str(dist), str(ilen)) + ".graphml")
     print(nx.info(G))
+
+
+if __name__ == '__main__':
+
+    if (len(sys.argv) == 10 ):
+        path = sys.argv[1]
+        m = sys.argv[2]
+        d = sys.argv[3]
+        h = sys.argv[4]
+        conf = float(sys.argv[5])
+        dist = int(sys.argv[6])
+        ilen = int(sys.argv[7])
+        c = int(sys.argv[8])
+        f = str(sys.argv[9])
+
+        run(path, m, d, h, conf, dist, ilen, c, f)
+    else:
+        print("Usage:\npython3 pipeline_frames_parakkek.py <path> <month> <day> <hour> <confidence> <radius> <interaction length> <number of processes> <filename>")
+        print("Example:\npython3 pipeline.py 'path/to/data' '08' '21' '15' 0.95 160 3 16 myfilename")
