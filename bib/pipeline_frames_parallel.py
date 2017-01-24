@@ -63,13 +63,13 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
     return prep.extract_interactions(p,ilen)
 
 
-def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3, c=None, filename="template"):
+def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template"):
 
     p = path
     c = confidence
     dist = distance
     ilen = interaction_len
-    cpus = c
+    cpus = numCPUs
 
     pool = multiprocessing.Pool(cpus)
 
@@ -97,7 +97,7 @@ def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3,
     results = [pool.apply_async( generate_network, t ) for t in tasks[:1]]
 
 
-    filename = "{}-{}-{}-1h-allCams"
+    fname = "{}-{}-{}-{}".format(m,d,h,filename)
 
 
     edges = []
@@ -107,7 +107,7 @@ def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3,
         print("Appended Result.")
 
     G = prep.create_graph2(pd.concat(edges))
-    nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(filename, str(c), str(dist), str(ilen)) + ".graphml")
+    nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(fname, str(c), str(dist), str(ilen)) + ".graphml")
     print(nx.info(G))
 
 
