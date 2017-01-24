@@ -38,7 +38,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
             myid += 1
         
         df = DataFrame(tpls)
-        print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b),datetime.datetime.fromtimestamp(e)))
+        print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b, tz=pytz.UTC),datetime.datetime.fromtimestamp(e, tz=pytz.UTC)))
         df = prep.calcIds(df,confidence)
         parts[i] = df
         
@@ -60,7 +60,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
     return prep.extract_interactions(p,ilen)
 
 
-def run(path, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template"):
+def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template"):
 
     p = path
     c = confidence
@@ -72,20 +72,20 @@ def run(path, confidence=.95, distance=160, interaction_len=3, numCPUs=None, fil
 
     repo = Repository(p)
 
-    slice_len = 5*60   #number of minutes per slice in seconds
-    number_hours = 1*60*60 #number of hours in seconds
+    #number of minutes per slice in seconds, for making parallel
+    slice_len = 5*60   
+
+    #network_size in seconds
+    size = network_size*60 
 
     it = repo.iter_frames()
     f, fc = it.send(None)
     dt = datetime.datetime.fromtimestamp(f.timestamp, tz=pytz.UTC)
 
-    begin_dt = dt.replace(minute=0, second=0, microsecond=0)
-    begin_ts = begin_dt.timestamp()
+    begin_ts = start_ts
+    begin_dt = datetime.datetime.fromtimestamp(begin_ts)
 
-    end_dt = begin_dt + datetime.timedelta(hours=1)
-    end_ts = end_dt.timestamp()
-
-    parts = int(number_hours/slice_len)
+    parts = int(size/slice_len)
 
     print("#Parts: {}".format(parts))
     
@@ -114,15 +114,23 @@ def run(path, confidence=.95, distance=160, interaction_len=3, numCPUs=None, fil
 
 if __name__ == '__main__':
 
-    if (len(sys.argv) == 7 ):
+    if (len(sys.argv) == 9):
         path = sys.argv[1]
-        conf = float(sys.argv[2])
-        dist = int(sys.argv[3])
-        ilen = int(sys.argv[4])
-        c = int(sys.argv[5])
-        f = str(sys.argv[6])
 
-        run(path, conf, dist, ilen, c, f)
+        start = sys.argv[2]
+        start_dt = datetime.datetime.strptime(start, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=pytz.UTC)
+        start_ts = start_dt.timestamp()
+
+        size = int(sys.argv[3])
+
+        conf = float(sys.argv[4])
+        dist = int(sys.argv[5])
+        ilen = int(sys.argv[6])
+        c = int(sys.argv[7])
+        f = str(sys.argv[8])
+
+        run(path, start_ts, size, conf, dist, ilen, c, f)
+
     else:
-        print("Usage:\npython3 pipeline_frames_parallel.py <path> <confidence> <radius> <interaction length> <number of processes> <filename>")
-        print("Example:\npython3 pipeline.py 'path/to/data' 0.95 160 3 16 myfilename")
+        print("Usage:\npython3 pipeline_frames_parallel.py <path> <start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> <confidence> <radius> <interaction length> <number of processes> <filename>")
+        print("Example:\npython3 pipeline.py 'path/to/data' 2015-08-21T00:00:00Z 60 0.95 160 3 16 myfilename")
