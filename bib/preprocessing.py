@@ -293,7 +293,7 @@ def create_graph(gr, filename):
 def create_graph2(pairs):
 	G = nx.Graph()
 
-	df = DataFrame(pairs, columns=["pair", "weight"])
+	df = DataFrame(pairs, columns=["weight"]).reset_index().rename(columns={'index':'pair'})
 	edges = df.groupby(by="pair").sum()
 	edges = edges.reset_index()
 

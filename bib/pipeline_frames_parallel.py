@@ -1,15 +1,11 @@
-
-# coding: utf-8
-
-# In[6]:
-
 import multiprocessing
 import pandas as pd
 import numpy as np
 import networkx as nx
 import preprocessing as prep
-import sys
+import sys  
 import datetime
+import pytz 
 
 from multiprocessing import Pool
 from bb_binary import FrameContainer, Repository, load_frame_container
@@ -18,7 +14,6 @@ from pandas import DataFrame, Series
 
 
 def generate_network(enu, path, b, e, confidence, distance, ilen):
-    print("path: {}".format(enu), path,b,e,confidence,distance,ilen)
     
     repo = Repository(path)
     xmax = 3000
@@ -26,14 +21,16 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
     
     Detection = namedtuple('Detection',
                            ['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
-
     # one df per cam
     parts = np.empty(4, dtype=object)
+
 
     for i in list(range(4)):
          
         tpls = []
         myid = 0
+
+
         for frame, fc in repo.iter_frames(begin=b, end=e, cam=i):
             for d in frame.detectionsUnion.detectionsDP:
                 d = Detection(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), myid, frame.timestamp, fc.camId, fc.id)
@@ -41,10 +38,10 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
             myid += 1
         
         df = DataFrame(tpls)
+        print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b),datetime.datetime.fromtimestamp(e)))
         df = prep.calcIds(df,confidence)
         parts[i] = df
         
-
     # cam 0 und cam1 nach rechts verschieben
     parts[0].xpos = parts[0].xpos + xmax + offset
     parts[1].xpos = parts[1].xpos + xmax + offset
@@ -63,7 +60,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen):
     return prep.extract_interactions(p,ilen)
 
 
-def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template"):
+def run(path, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template"):
 
     p = path
     c = confidence
@@ -75,30 +72,34 @@ def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3,
 
     repo = Repository(p)
 
+    slice_len = 5*60   #number of minutes per slice in seconds
+    number_hours = 1*60*60 #number of hours in seconds
 
-    number_hours = 1*60*60 #number of hours in total in seconds
-    slice_len = 6*60   #number of minutes per slice
+    it = repo.iter_frames()
+    f, fc = it.send(None)
+    dt = datetime.datetime.fromtimestamp(f.timestamp, tz=pytz.UTC)
 
-    m = month
-    d = day
-    h = hour
-    begin = "2015-{}-{}T{}:00:00Z".format(m,d,h) # %Y-%m-%dT%H:%M:%SZ
-    begin_ts = datetime.datetime.timestamp(datetime.datetime.strptime(begin, "%Y-%m-%dT%H:%M:%SZ"))
+    begin_dt = dt.replace(minute=0, second=0, microsecond=0)
+    begin_ts = begin_dt.timestamp()
+
+    end_dt = begin_dt + datetime.timedelta(hours=1)
+    end_ts = end_dt.timestamp()
 
     parts = int(number_hours/slice_len)
 
+    print("#Parts: {}".format(parts))
+    
     tasks = []
 
     for enu, i in enumerate(list(range(parts))):
         b = begin_ts + (i * slice_len)
-        e = (b-0.1) + (slice_len)
+        e = (b-0.000001) + (slice_len)
         tasks.append((enu, p, b, e, c, dist, ilen))
 
-    results = [pool.apply_async( generate_network, t ) for t in tasks[:1]]
+    results = [pool.apply_async( generate_network, t ) for t in tasks]
 
 
-    fname = "{}-{}-{}-{}".format(m,d,h,filename)
-
+    fname = "{}".format(filename)
 
     edges = []
 
@@ -113,18 +114,15 @@ def run(path, month, day, hour, confidence=.95, distance=160, interaction_len=3,
 
 if __name__ == '__main__':
 
-    if (len(sys.argv) == 10 ):
+    if (len(sys.argv) == 7 ):
         path = sys.argv[1]
-        m = sys.argv[2]
-        d = sys.argv[3]
-        h = sys.argv[4]
-        conf = float(sys.argv[5])
-        dist = int(sys.argv[6])
-        ilen = int(sys.argv[7])
-        c = int(sys.argv[8])
-        f = str(sys.argv[9])
+        conf = float(sys.argv[2])
+        dist = int(sys.argv[3])
+        ilen = int(sys.argv[4])
+        c = int(sys.argv[5])
+        f = str(sys.argv[6])
 
-        run(path, m, d, h, conf, dist, ilen, c, f)
+        run(path, conf, dist, ilen, c, f)
     else:
-        print("Usage:\npython3 pipeline_frames_parakkek.py <path> <month> <day> <hour> <confidence> <radius> <interaction length> <number of processes> <filename>")
-        print("Example:\npython3 pipeline.py 'path/to/data' '08' '21' '15' 0.95 160 3 16 myfilename")
+        print("Usage:\npython3 pipeline_frames_parallel.py <path> <confidence> <radius> <interaction length> <number of processes> <filename>")
+        print("Example:\npython3 pipeline.py 'path/to/data' 0.95 160 3 16 myfilename")
