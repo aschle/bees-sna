@@ -65,7 +65,7 @@ def getIDs(m, d, h, files, conf):
             a[i] += 1
     return (m,d,h,a)
 
-def run(path, conf, cpus):
+def run(path, conf, cpus, year):
     
     pool = multiprocessing.Pool(cpus)
     
@@ -73,8 +73,8 @@ def run(path, conf, cpus):
     
     file_list = []
     for f in repo.iter_fnames():
-        string = f.split('2015')
-        datum = string[1].split("/")
+        string = f.split(year)
+        datum = string[2].split("/")
         file_list.append([datum[1], datum[2], datum[3], f])
     
     # DataFrame with all files
@@ -124,12 +124,13 @@ def run(path, conf, cpus):
 
 if __name__ == '__main__':
 
-	if (len(sys.argv) == 4 ):
+	if (len(sys.argv) == 5 ):
 		path = sys.argv[1]		
 		conf = float(sys.argv[2])
 		cpus = int(sys.argv[3])
+		year = sys.argv[4]
 
-		run(path, conf, cpus)
+		run(path, conf, cpus, year)
 	else:
 		print("Usage:\npython3 ids_script.py <path> <confidence> <number of processes>")
 		print("Example:\npython3 ids_script.py 'path/to/data' 0.95 8")
