@@ -53,7 +53,7 @@ def get_dataframe2(fcs):
                 d = Detection(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), f.frameIdx, f.timestamp, fc.camId, fc.id)
                 tpls.append(d)
 
-    df = pd.DataFrame(tpls)
+	
     return df
 
 
@@ -71,13 +71,20 @@ def get_detected_id(bits):
 
 	return decimal_id
 
+# Und das hier ist meine Funktion, um ein Array mit Integer (Bits)
+# in eine Dezimalzahl umzuwandeln:
+def bin12_to_dec12(bitlist):
+    #  Input: binary array (12) (12 o'clock, clockwise)
+    # Output: integer			(12 o'clock, clockwise)
+    return int(''.join([str(c) for c in bitlist]), 2)
+
 
 def get_confidence(bits):
 	# 12 bits mit Werten zwischen 0 und 256
 	return np.min(np.abs(0.5 - bits)) * 2
 
 # Dezimale ID ausrechnen und an DataFrame angaengen
-def calcIds(df, threshold):
+def calcIds(df, threshold, year):
 	df = df.copy()
 	df.decodedId = df.decodedId.apply(lambda x: np.array(x)/255)
 
@@ -90,8 +97,12 @@ def calcIds(df, threshold):
 	# die detections entfernen die nicht  die nicht gut genug sind
 	df = df[df.confidence >= threshold]
 
-	# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
-	df.loc[:, 'id'] = df.decodedId.apply(get_detected_id)
+	if year == 2015:
+		# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
+		df.loc[:, 'id'] = df.decodedId.apply(get_detected_id)
+
+	if year == 2016:
+		df.loc[:, 'id'] = df.decodedId.apply(bin12_to_dec12)
 
 	df.drop('decodedId', 1, inplace = True)
 
