@@ -76,7 +76,8 @@ def get_detected_id(bits):
 def bin12_to_dec12(bitlist):
     #  Input: binary array (12) (12 o'clock, clockwise)
     # Output: integer			(12 o'clock, clockwise)
-    return int(''.join([str(c) for c in bitlist]), 2)
+    binary_id = (bitlist>0.5)*1
+    return int(''.join([str(c) for c in binary_id]), 2)
 
 
 def get_confidence(bits):
