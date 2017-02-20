@@ -41,14 +41,25 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year):
         print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b, tz=pytz.UTC),datetime.datetime.fromtimestamp(e, tz=pytz.UTC)))
         df = prep.calcIds(df,confidence, year)
         parts[i] = df
-        
-    # cam 0 und cam1 nach rechts verschieben
-    parts[0].xpos = parts[0].xpos + xmax + offset
-    parts[1].xpos = parts[1].xpos + xmax + offset
+    
+    if year == 2015:
+        # cam 0 und cam1 nach rechts verschieben
+        parts[0].xpos = parts[0].xpos + xmax + offset
+        parts[1].xpos = parts[1].xpos + xmax + offset
 
-    # Seiten zusammenfugen
-    side0 = pd.concat([parts[3], parts[0]])
-    side1 = pd.concat([parts[2], parts[1]])
+        # Seiten zusammenfugen
+        side0 = pd.concat([parts[3], parts[0]])
+        side1 = pd.concat([parts[2], parts[1]])
+
+    if year == 2016:
+        # cam 1 und cam 3 nach rechts verschieben
+        parts[1].xpos = parts[1].xpos + xmax + offset
+        parts[3].xpos = parts[3].xpos + xmax + offset
+
+        # Seiten zusammenfugen
+        side0 = pd.concat([parts[0], parts[1]])
+        side1 = pd.concat([parts[2], parts[3]])
+
 
     close1 = prep.get_close_bees_ckd(side0, distance)
     close2 = prep.get_close_bees_ckd(side1, distance)

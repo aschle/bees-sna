@@ -1,8 +1,8 @@
 for i in "00" "01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12" "13" "14" "15" "16" "17" "18" "19" "20" "21" "22" "23"
 
 	do
-	echo $i 
-	python3 pipeline_frames_parallel.py /storage/mi/aschle/1day/ 2015-08-21T$i:00:00Z 60 0.99 160 6 12 2015-08-21T$i:00:00Z_1h_allCams
+	echo ${i} 
+	python3 pipeline_frames_parallel.py /mnt/data2016/ 2016-08-02T${i}:00:00Z 60 0.99 160 6 8 2015-08-02T${i}:00:00Z_1h_allCams 2016
 
 done
 

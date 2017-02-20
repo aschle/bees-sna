@@ -7,6 +7,28 @@ from pandas import DataFrame, Series
 from scipy import spatial
 from collections import namedtuple
 
+Detection10 = namedtuple('Detection',
+	['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
+
+# Returns the bb_binary data (detections) as a pandas DataFrame for some timeinterval.
+# path - path to the repositorys root folder (not the year!)
+# b - beginning timestamp of the interval
+# e - ending timestamp of the interval
+# camID - the ID of the camera 0,1,2,3
+def getDF(path, b, e, camID):
+    repo = Repository(path)
+    
+    tpls = []
+    myid = 0
+
+    for frame, fc in repo.iter_frames(begin=b, end=e, cam=camID):
+        for d in frame.detectionsUnion.detectionsDP:
+            d = Detection10(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), myid, frame.timestamp, fc.camId, fc.id)
+            tpls.append(d)
+        myid += 1
+
+    df = DataFrame(tpls)
+    return df
 
 # Eine Datei von einer Kamera holen und ein filecontainer
 # zurueckgeben
@@ -152,7 +174,11 @@ def get_close_bees_ckd(df, distance):
         xy_coordinates = group[['xpos', 'ypos']].values
         tree = spatial.cKDTree(xy_coordinates, leafsize=20)
         result = tree.query_pairs(distance)
-        l = [[i,group['id'].iat[a], group['id'].iat[b]] for a,b in result]
+
+        res = [(group['id'].iat[a], group['id'].iat[b])  for a,b in result]
+
+        l = [[i, a, b] if a < b else [i, b, a] for a, b in res]
+
         df_close = df_close.append(DataFrame(l, columns=['frame_idx', 'id_x', 'id_y']))
 
     return df_close
@@ -220,6 +246,19 @@ def df_to_timeseries(df):
 
 	return dft
 
+def df_to_timeseries_with_conf(df, conf, year):
+    dfid = prep.calcIds(df,conf,year)
+    gr = dfid.groupby(by='frame_idx')
+    num_columns = len(gr)
+    u_id = dfid.id.unique()
+    dft = DataFrame(0, index=u_id, columns=np.arange(num_columns))
+
+    for i, group in gr:
+        l = group['id']
+        dft.loc[l,i] = 1
+    
+    return dft
+
 
 def timeseries_to_df(dft, df):
 
@@ -280,8 +319,8 @@ def timeseries_to_df(dft, df):
 # ...
 # correct it (fill gaps) and then shape it back again
 #
-def correct_bees_timeframes(df):
-	dft = df_to_timeseries(df)
+def correct_bees_timeframes(df, conf, year):
+	dft = df_to_timeseries_with_conf(df, conf, year)
 	dft = dft.apply(fill_gaps, axis=1)
 	df_corrected = timeseries_to_df(dft, df)
 	return df_corrected

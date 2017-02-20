@@ -48,7 +48,7 @@ def createAllTables(c):
 	);''')
 
 
-def run(path_to_db, path_to_repo, conf, start_string, time_delta):
+def run(path_to_db, path_to_repo, conf, start_string, time_delta, year):
 
 	db_path = path_to_db
 	conn = sqlite3.connect(db_path)
@@ -100,7 +100,7 @@ def run(path_to_db, path_to_repo, conf, start_string, time_delta):
 			my_frame_id += 1
 
 		df = pd.DataFrame(tpls) 
-		df = prep.calcIds(df, confidence)
+		df = prep.calcIds(df, confidence, year)
 		df.drop('confidence', axis=1, inplace=True)
 
 		# Detections zu db hinzufuegen
@@ -117,7 +117,7 @@ def run(path_to_db, path_to_repo, conf, start_string, time_delta):
 if __name__ == '__main__':
 
 	# path_to_db, path_to_repo, conf, start_string, time_delta
-	if (len(sys.argv) == 6 ):
+	if (len(sys.argv) == 7 ):
 		path_to_db = sys.argv[1]
 		path_to_repo = sys.argv[2]
 
@@ -125,11 +125,12 @@ if __name__ == '__main__':
 
 		start_string = str(sys.argv[4])
 		time_delta = int(sys.argv[5])
+		year = int(sys.argv[6])
 
-		run(path_to_db, path_to_repo, conf, start_string, time_delta)
+		run(path_to_db, path_to_repo, conf, start_string, time_delta, year)
 	else:
-		print("Usage:\npython3 bbbinary_to_db.py <path_to_db> <path_to_repo> <confidence> <start_time_string> <time_delta_hours>")
-		print("Example:\npython3 bbbinary_to_db.py '/storage/mi/aschle/data.db' '/storage/mi/aschle/days/' 0.99 2015-08-21T00:00:00Z 1")
+		print("Usage:\npython3 bbbinary_to_db.py <path_to_db> <path_to_repo> <confidence> <start_time_string> <time_delta_hours> <year>")
+		print("Example:\npython3 bbbinary_to_db.py '/storage/mi/aschle/data.db' '/storage/mi/aschle/days/' 0.99 2015-08-21T00:00:00Z 1 2015")
 
 
 # "/storage/mi/aschle/data.db"
