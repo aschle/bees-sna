@@ -189,24 +189,29 @@ def get_ketten(kette, val):
     ss = s.split(val)
     return [x for x in ss if len(x) > 0]
 
-def bee_pairs_to_timeseries(df):
-	close = df[['frame_idx', 'id_x', 'id_y']]
-	close['pair'] = list(zip(close.id_x, close.id_y))
-	u_pairs = close.pair.unique()
-	dft = DataFrame(0, index=u_pairs, columns=np.arange(1024))
-	gr = close.groupby('frame_idx')
+def get_ketten_len(kette, val, ilen):
+    kette = kette.apply(str)
+    s = kette.str.cat(sep='')
+    ss = s.split(val)
+    return [len(x) for x in ss if len(x) >= ilen]
 
-	for i, group in gr:
-		l = group['pair']
-		dft.loc[l,i] = 1
+def bee_pairs_to_timeseries(close):
+    max = close.frame_idx.unique().max() + 1
+    close['pair'] = list(zip(close.id_x, close.id_y))
+    u_pairs = close.pair.unique()
+    dft = DataFrame(0, index=u_pairs, columns=np.arange(max))
+    gr = close.groupby('frame_idx')
 
-	return dft
+    for i, group in gr:
+        l = group['pair']
+        dft.loc[l,i] = 1
+
+    return dft
 
 def extract_interactions(dft, minlength):
-    kette = dft.apply(get_ketten, axis=1, args=["0"])
-    kk = kette.apply(lambda x: [len(item) for item in x])
-    kk = kk.apply(lambda x: len([item for item in x if item >= minlength]))
-    return kk[kk > 0]
+    ketten = dft.apply(get_ketten_len, axis=1, args=["0", minlength])
+    kk = ketten.apply(lambda x: (len(x), sum(x), x))
+    return kk[kk != (0,0,[])]
 
 def get_edges(df):
 	df = df[['id_x', 'id_y']]
@@ -227,24 +232,33 @@ def fill_gaps(ll):
             ll[n+1] = 1
     return ll
 
+# Fill gaps of length 'gap'
+def fill_gaps(ll, gap):
+    length = -1
+    for n,k in enumerate(ll):
+        if k == 0:
+            if length != -1:
+                length += 1
+        if k == 1:
+            if length <= gap:
+                # auffüllen
+                for i in list(range(length+1)):
+                    ll[n-i] = 1
+            length = 0
+    return ll
+
 
 def df_to_timeseries(df):
-	gr = df.groupby(level='frame_idx')
-	num_columns = len((df.index.get_level_values('frame_idx')).unique())
+    gr = df.groupby(by='frame_idx')
+    num_columns = df.frame_idx.unique().max() + 1
+    u_id = df.id.unique()
+    dft = DataFrame(0, index=u_id, columns=np.arange(num_columns))
 
-	# levels wegschmeissen
-	df = df.reset_index(level = ['fc_id', 'frame_idx', 'idx'], drop=False )
-
-	# get all unique ids von allen Frames
-	u_id = df.id.unique()
-
-	dft = DataFrame(0, index=u_id, columns=np.arange(num_columns))
-
-	for i, group in gr:
-		l = group['id']
-		dft.loc[l,i] = 1
-
-	return dft
+    for i, group in gr:
+        l = group['id']
+        dft.loc[l,i] = 1
+    
+    return dft
 
 def df_to_timeseries_with_conf(df, conf, year):
     dfid = prep.calcIds(df,conf,year)
@@ -341,15 +355,23 @@ def create_graph(gr, filename):
 
 	return G
 
+def myfunction(zeugs):
+    retval = tuple(sum(zeugs.values, []))
+    return retval
+
 def create_graph2(pairs):
 	G = nx.Graph()
 
-	df = DataFrame(pairs, columns=["weight"]).reset_index().rename(columns={'index':'pair'})
-	edges = df.groupby(by="pair").sum()
+	df = DataFrame(pairs.tolist(), columns=['frequency', 'totalduration', 'durations'], index=pairs.index)
+	df = df.reset_index().rename(columns={'index':'pair'})
+
+
+	gr = df.groupby(by="pair")
+	edges = gr.aggregate({'frequency': sum, 'totalduration': sum, 'durations': myfunction})
 	edges = edges.reset_index()
 
 	for index, x in edges.iterrows():
-		G.add_edge(x.pair[0], x.pair[1], weight=x.weight)
+		G.add_edge(x.pair[0], x.pair[1], frequency=x.frequency, totalduration=x.totalduration, durations=str(tuple(x.durations)))
 
 	return G
 

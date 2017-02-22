@@ -13,7 +13,7 @@ from collections import namedtuple
 from pandas import DataFrame, Series
 
 
-def generate_network(enu, path, b, e, confidence, distance, ilen, year):
+def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
     
     repo = Repository(path)
     xmax = 3000
@@ -39,7 +39,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year):
         
         df = DataFrame(tpls)
         print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b, tz=pytz.UTC),datetime.datetime.fromtimestamp(e, tz=pytz.UTC)))
-        df = prep.calcIds(df,confidence, year)
+        df = prep.calcIds(df, confidence, year)
         parts[i] = df
     
     if year == 2015:
@@ -68,10 +68,13 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year):
 
     p = prep.bee_pairs_to_timeseries(close)
 
-    return prep.extract_interactions(p,ilen)
+    # Coorect pair time series
+    p_corrected = p.apply(prep.fill_gaps, axis=1, args=[gap])
+
+    return prep.extract_interactions(p_corrected,ilen)
 
 
-def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2015):
+def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2015, gap=2):
 
     p = path
     c = confidence
@@ -106,7 +109,7 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
     for enu, i in enumerate(list(range(parts))):
         b = begin_ts + (i * slice_len)
         e = (b-0.000001) + (slice_len)
-        tasks.append((enu, p, b, e, c, dist, ilen, y))
+        tasks.append((enu, p, b, e, c, dist, ilen, y, gap))
 
     results = [pool.apply_async( generate_network, t ) for t in tasks]
 
@@ -126,7 +129,7 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
 
 if __name__ == '__main__':
 
-    if (len(sys.argv) == 10):
+    if (len(sys.argv) == 11):
         path = sys.argv[1]
 
         start = sys.argv[2]
@@ -141,9 +144,14 @@ if __name__ == '__main__':
         c = int(sys.argv[7])
         f = str(sys.argv[8])
         year = int(sys.argv[9])
+        gap = int(sys.argv[10])
 
-        run(path, start_ts, size, conf, dist, ilen, c, f, year)
+        run(path, start_ts, size, conf, dist, ilen, c, f, year, gap)
 
     else:
-        print("Usage:\npython3 pipeline_frames_parallel.py <path> <start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> <confidence> <radius> <interaction length> <number of processes> <filename> <year>")
-        print("Example:\npython3 pipeline.py 'path/to/data' 2015-08-21T00:00:00Z 60 0.95 160 3 16 myfilename 2015")
+        print("Usage:\npython3 pipeline_frames_parallel.py <path> \
+            <start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> \
+            <confidence> <radius> <interaction length> <number of processes> \
+            <filename> <year> <gap-size>")
+        print("Example:\npython3 pipeline.py 'path/to/data' 2015-08-21T00:00:00Z 60 \
+            0.95 160 3 16 myfilename 2015")
