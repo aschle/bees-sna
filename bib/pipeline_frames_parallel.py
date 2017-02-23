@@ -138,7 +138,7 @@ if __name__ == '__main__':
 
         size = int(sys.argv[3])
 
-        conf = float(sys.argv[4])
+        conf = int(sys.argv[4])/100
         dist = int(sys.argv[5])
         ilen = int(sys.argv[6])
         c = int(sys.argv[7])
@@ -146,6 +146,7 @@ if __name__ == '__main__':
         year = int(sys.argv[9])
         gap = int(sys.argv[10])
 
+        print("ilen {}, conf {}, dist {}, gap {}". format(ilen, conf, dist, gap))
         run(path, start_ts, size, conf, dist, ilen, c, f, year, gap)
 
     else:
