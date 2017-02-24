@@ -135,12 +135,12 @@ def calcIds(df, threshold, year):
 def removeDetections(df, cutoff=10):
     idstat = df.groupby(by='id').size()
     m = idstat.mean()
-    boder = cutoff*m/100
+    border = cutoff*m/100
     keepIDs = idstat[idstat >= border]
     keepIDs = list(keepIDs.index.values)
     
     # remove detections with trashIDs from df
-    leftOver = side[side.id.isin(keepIds)]
+    leftOver = df[df.id.isin(keepIDs)]
     
     return leftOver
 
