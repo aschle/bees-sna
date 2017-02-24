@@ -13,7 +13,7 @@ from collections import namedtuple
 from pandas import DataFrame, Series
 
 
-def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
+def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap, cutoff):
     
     repo = Repository(path)
     xmax = 3000
@@ -66,6 +66,10 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
 
     close = pd.concat([close1,close2])
 
+    # Detectionen wegschmeißen, dessen ID insgesamt sehr wenig detektiert wurde
+    close = prep.removeDetections(close, cutoff)
+
+    # Zeitreihe für Paare machen
     p = prep.bee_pairs_to_timeseries(close)
 
     # Coorect pair time series
@@ -74,7 +78,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
     return prep.extract_interactions(p_corrected,ilen)
 
 
-def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2015, gap=2):
+def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2015, gap=2, cutoff=10):
 
     p = path
     c = confidence
@@ -109,7 +113,7 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
     for enu, i in enumerate(list(range(parts))):
         b = begin_ts + (i * slice_len)
         e = (b-0.000001) + (slice_len)
-        tasks.append((enu, p, b, e, c, dist, ilen, y, gap))
+        tasks.append((enu, p, b, e, c, dist, ilen, y, gap, cutoff))
 
     results = [pool.apply_async( generate_network, t ) for t in tasks]
 
@@ -129,7 +133,7 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
 
 if __name__ == '__main__':
 
-    if (len(sys.argv) == 11):
+    if (len(sys.argv) == 12):
         path = sys.argv[1]
 
         start = sys.argv[2]
@@ -145,14 +149,15 @@ if __name__ == '__main__':
         f = str(sys.argv[8])
         year = int(sys.argv[9])
         gap = int(sys.argv[10])
+        cutoff = int(sys.argv[11])
 
         print("ilen {}, conf {}, dist {}, gap {}". format(ilen, conf, dist, gap))
-        run(path, start_ts, size, conf, dist, ilen, c, f, year, gap)
+        run(path, start_ts, size, conf, dist, ilen, c, f, year, gap, cutoff)
 
     else:
         print("Usage:\npython3 pipeline_frames_parallel.py <path> \
             <start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> \
             <confidence> <radius> <interaction length> <number of processes> \
-            <filename> <year> <gap-size>")
+            <filename> <year> <gap-size> <cutoff>")
         print("Example:\npython3 pipeline.py 'path/to/data' 2015-08-21T00:00:00Z 60 \
-            0.95 160 3 16 myfilename 2015")
+            0.95 160 3 16 myfilename 2015 10")

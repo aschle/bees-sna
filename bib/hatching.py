@@ -2,6 +2,7 @@ import numpy as np
 import numpy.ma as npma
 import datetime
 import csv
+import pandas as pd
 
 def get_mean_age(ages):
     #  Input: object array (ages of bee group)
@@ -28,24 +29,23 @@ def get_bees_of_age(ages, age):
     # Output: numpy object ndarray (bees of specified age)    
     return np.where(ages == age)[0]
 
-def get_all_bees_age(date):
-    #  Input: date object
-    # Output: numpy object ndarray (age of all bees)
-    if isinstance(date, datetime.datetime):
-        date = date.date()
+
+def get_all_bees_age(datum):
+    # Input: date object
+    # Output: pandas dataframe
+    if isinstance(datum, datetime.datetime):
+        datum = datum.date()
     
     ages = []
-    with open('hatchdates2016.csv', 'r') as csvfile:
-        reader = csv.reader(csvfile, delimiter=',')	
-        for row in reader:
-            if reader.line_num == 1:
-                continue
-            if row[2] == '':
-                age = None
-            else:
-                age = (date - str_to_datetime(row[2]).date()).days                
-            ages.append(age)
-    return np.array(ages)
+    
+    f = pd.read_csv('hatchdates2016.csv')
+    f = f[[0,2]]
+    f = f.fillna('')
+    f.birthdate = f.birthdate.apply(lambda x: str_to_datetime(x))
+    f['age'] = f.birthdate.apply(lambda x: (datum - x.date()))
+    f.age.fillna(-1, inplace = True)
+    f.age = f.age.apply(lambda x: x.days)
+    return f
 
 def get_age(dec12, date):	
     #  Input: integer (12 o'clock, clockwise),

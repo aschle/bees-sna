@@ -132,6 +132,18 @@ def calcIds(df, threshold, year):
 	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
 
+def removeDetections(df, cutoff=10):
+    idstat = df.groupby(by='id').size()
+    m = idstat.mean()
+    boder = cutoff*m/100
+    keepIDs = idstat[idstat >= border]
+    keepIDs = list(keepIDs.index.values)
+    
+    # remove detections with trashIDs from df
+    leftOver = side[side.id.isin(keepIds)]
+    
+    return leftOver
+
 def get_close_bees(df, distance):
 
 	df = df.reset_index(level = 'frame_idx')
