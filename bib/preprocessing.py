@@ -136,7 +136,7 @@ def removeDetections(df, cutoff=10):
     idstat = df.groupby(by='id').size()
     m = idstat.mean()
     border = cutoff*m/100
-    keepIDs = idstat[idstat >= border]
+    keepIDs = idstat[idstat > border]
     keepIDs = list(keepIDs.index.values)
     
     # remove detections with trashIDs from df
