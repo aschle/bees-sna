@@ -60,14 +60,16 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap, cut
         side0 = pd.concat([parts[0], parts[1]])
         side1 = pd.concat([parts[2], parts[3]])
 
+    
+    # Detectionen wegschmeißen, dessen ID insgesamt sehr wenig detektiert wurde
+    side0 = prep.removeDetections(side0, cutoff)
+    side1 = prep.removeDetections(side1, cutoff)
 
     close1 = prep.get_close_bees_ckd(side0, distance)
     close2 = prep.get_close_bees_ckd(side1, distance)
 
     close = pd.concat([close1,close2])
 
-    # Detectionen wegschmeißen, dessen ID insgesamt sehr wenig detektiert wurde
-    close = prep.removeDetections(close, cutoff)
 
     # Zeitreihe für Paare machen
     p = prep.bee_pairs_to_timeseries(close)
