@@ -8,7 +8,7 @@ from scipy import spatial
 from collections import namedtuple
 
 Detection10 = namedtuple('Detection',
-	['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
+	['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id', 'frame_id'])
 
 # Returns the bb_binary data (detections) as a pandas DataFrame for some timeinterval.
 # path - path to the repositorys root folder (not the year!)
@@ -23,7 +23,7 @@ def getDF(path, b, e, camID):
 
     for frame, fc in repo.iter_frames(begin=b, end=e, cam=camID):
         for d in frame.detectionsUnion.detectionsDP:
-            d = Detection10(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), myid, frame.timestamp, fc.camId, fc.id)
+            d = Detection10(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), myid, frame.timestamp, fc.camId, fc.id, frame.id)
             tpls.append(d)
         myid += 1
 
