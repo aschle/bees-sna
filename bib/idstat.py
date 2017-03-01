@@ -62,7 +62,7 @@ def run(path, ts, confidence=0.95, numCPUs=4, filename="IDS", year=2016, slice_l
 
     results = [pool.apply_async( working, t ) for t in tasks]
 
-    fname = "{}-{}-{}conf-{}h".format(filename, ts, confidence, interval)
+    fname = "{}-{}-{}conf-{}h".format(filename, datetime.datetime.fromtimestamp(ts, tz=pytz.UTC), confidence, interval)
 
     id_list = np.array([0]*4096)
 
