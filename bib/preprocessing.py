@@ -109,25 +109,30 @@ def get_confidence(bits):
 # Dezimale ID ausrechnen und an DataFrame angaengen
 def calcIds(df, threshold, year):
 	df = df.copy()
-	df.decodedId = df.decodedId.apply(lambda x: np.array(x)/255)
 
-	# calc confidence value
-		# 0...256 in 0...1 umrechnen
-		# fuer jedes bit abstand zu 0.5 berechnen und dann minimum behalten
-	# add confidence value to dataframe as column
-	df.loc[:, 'confidence'] = df.decodedId.apply(get_confidence)
+	if (df.shape[0] != 0):
+		df.decodedId = df.decodedId.apply(lambda x: np.array(x)/255)
 
-	# die detections entfernen die nicht  die nicht gut genug sind
-	df = df[df.confidence >= threshold]
+		# calc confidence value
+			# 0...256 in 0...1 umrechnen
+			# fuer jedes bit abstand zu 0.5 berechnen und dann minimum behalten
+		# add confidence value to dataframe as column
+		df.loc[:, 'confidence'] = df.decodedId.apply(get_confidence)
 
-	if year == 2015:
-		# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
-		df.loc[:, 'id'] = df.decodedId.apply(get_detected_id)
+		# die detections entfernen die nicht  die nicht gut genug sind
+		df = df[df.confidence >= threshold]
 
-	if year == 2016:
-		df.loc[:, 'id'] = df.decodedId.apply(bin12_to_dec12)
+		if year == 2015:
+			# fuer den Rest der ueber bleibt die ID berechnen und an DF anhaengen
+			df.loc[:, 'id'] = df.decodedId.apply(get_detected_id)
 
-	df.drop('decodedId', 1, inplace = True)
+		if year == 2016:
+			df.loc[:, 'id'] = df.decodedId.apply(bin12_to_dec12)
+
+		df.drop('decodedId', 1, inplace = True)
+
+	else:
+		print('DF was empty')
 
 	#print('Number of Detections after calcualting IDs: {}'.format(df.shape[0]))
 	return df
