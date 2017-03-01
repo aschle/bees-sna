@@ -43,7 +43,7 @@ def get_all_bees_age(datum):
     f = f.fillna('')
     f.birthdate = f.birthdate.apply(lambda x: str_to_datetime(x))
     f['age'] = f.birthdate.apply(lambda x: (datum - x.date()))
-    f.age.fillna(-1, inplace = True)
+    f.age.fillna(datetime.timedelta(days=-100), inplace = True)
     f.age = f.age.apply(lambda x: x.days)
     return f
 
