@@ -149,6 +149,13 @@ def removeDetections(df, cutoff=10):
     
     return leftOver
 
+
+def removeDetectionsList(df, datum):
+	liste = pd.Series.from_csv('IDlist_{}_95conf_24h.csv'.format(datum))
+	leftOver = df[df.id.isin(liste)]
+	return leftOver
+
+
 def get_close_bees(df, distance):
 
 	df = df.reset_index(level = 'frame_idx')

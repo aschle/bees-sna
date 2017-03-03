@@ -13,34 +13,41 @@ from collections import namedtuple
 from pandas import DataFrame, Series
 
 
-def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap, cutoff):
+def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
     
-    repo = Repository(path)
     xmax = 3000
-    offset = 200
+    offset = 2 * distance
     
-    Detection = namedtuple('Detection',
-                           ['idx', 'xpos', 'ypos', 'radius', 'zRotation', 'decodedId', 'frame_idx', 'timestamp', 'cam_id', 'fc_id'])
-    # one df per cam
     parts = np.empty(4, dtype=object)
 
+    abbrechen = False
 
+    stat = []
+
+    # one df per camera
     for i in list(range(4)):
-         
-        tpls = []
-        myid = 0
 
+        df = prep.getDF(path, b, e, i)
 
-        for frame, fc in repo.iter_frames(begin=b, end=e, cam=i):
-            for d in frame.detectionsUnion.detectionsDP:
-                d = Detection(d.idx, d.xpos, d.ypos, d.radius, d.zRotation, list(d.decodedId), myid, frame.timestamp, fc.camId, fc.id)
-                tpls.append(d)
-            myid += 1
-        
-        df = DataFrame(tpls)
-        print("#{} DF-{}: {}, {}, {}".format(enu, i, df.shape, datetime.datetime.fromtimestamp(b, tz=pytz.UTC),datetime.datetime.fromtimestamp(e, tz=pytz.UTC)))
+        numframes = 0
+        if (df.shape[0] != 0):
+            numframes = df.groupby(by='frame_idx').size().shape[0]
+            
+        stat.append(numframes)
+
         df = prep.calcIds(df, confidence, year)
+
+        # Abbrechen, wenn ein DF leer ist
+        if(df.shape[0] == 0):
+            abbrechen = True
+
         parts[i] = df
+
+    # AUSGABE
+    print("#{}: From {} to {} - {}".format(enu, datetime.datetime.fromtimestamp(b, tz=pytz.UTC), datetime.datetime.fromtimestamp(e, tz=pytz.UTC), stat))
+
+    if abbrechen == True:
+        return Series()
     
     if year == 2015:
         # cam 0 und cam1 nach rechts verschieben
@@ -61,9 +68,10 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap, cut
         side1 = pd.concat([parts[2], parts[3]])
 
     
+    dt = datetime.datetime.fromtimestamp(b, tz=pytz.UTC)
     # Detectionen wegschmeißen, dessen ID insgesamt sehr wenig detektiert wurde
-    side0 = prep.removeDetections(side0, cutoff)
-    side1 = prep.removeDetections(side1, cutoff)
+    side0 = prep.removeDetectionsList(side0, dt.strftime("%Y-%m-%d"))
+    side1 = prep.removeDetectionsList(side1, dt.strftime("%Y-%m-%d"))
 
     close1 = prep.get_close_bees_ckd(side0, distance)
     close2 = prep.get_close_bees_ckd(side1, distance)
@@ -80,28 +88,15 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap, cut
     return prep.extract_interactions(p_corrected,ilen)
 
 
-def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2015, gap=2, cutoff=10):
+def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_len=3, numCPUs=None, filename="template", year=2016, gap=2):
 
-    p = path
-    c = confidence
-    dist = distance
-    ilen = interaction_len
-    cpus = numCPUs
-    y = year
-
-    pool = multiprocessing.Pool(cpus)
-
-    repo = Repository(p)
+    pool = multiprocessing.Pool(numCPUs)
 
     #number of minutes per slice in seconds, for making parallel
-    slice_len = 5*60   
+    slice_len = 5*60   # TODO make parameter
 
     #network_size in seconds
     size = network_size*60 
-
-    it = repo.iter_frames()
-    f, fc = it.send(None)
-    dt = datetime.datetime.fromtimestamp(f.timestamp, tz=pytz.UTC)
 
     begin_ts = start_ts
     begin_dt = datetime.datetime.fromtimestamp(begin_ts)
@@ -115,7 +110,7 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
     for enu, i in enumerate(list(range(parts))):
         b = begin_ts + (i * slice_len)
         e = (b-0.000001) + (slice_len)
-        tasks.append((enu, p, b, e, c, dist, ilen, y, gap, cutoff))
+        tasks.append((enu, path, b, e, confidence, distance, interaction_len, year, gap))
 
     results = [pool.apply_async( generate_network, t ) for t in tasks]
 
@@ -125,17 +120,27 @@ def run(path, start_ts, network_size, confidence=.95, distance=160, interaction_
     edges = []
 
     for result in results:
-        edges.append(result.get())
-        print("Appended Result.")
+        res = result.get()
+
+        if res.empty:
+            print("Not Appended.")
+        else:
+            edges.append(res)
+            print("Appended Result.")
+            
 
     G = prep.create_graph2(pd.concat(edges))
-    nx.write_graphml(G, "{}_{}conf_{}dist_{}ilen".format(fname, str(c), str(dist), str(ilen)) + ".graphml")
+
+    nx.write_graphml(
+        G,
+        "{}_{}conf_{}dist_{}ilen_{}gap_{}minutes_{}.graphml".format(fname, str(int(confidence*100)), str(distance), str(interaction_len), str(gap), str(network_size), str(datetime.datetime.fromtimestamp(start_ts, tz=pytz.UTC))))
+
     print(nx.info(G))
 
 
 if __name__ == '__main__':
 
-    if (len(sys.argv) == 12):
+    if (len(sys.argv) == 11):
         path = sys.argv[1]
 
         start = sys.argv[2]
@@ -151,15 +156,14 @@ if __name__ == '__main__':
         f = str(sys.argv[8])
         year = int(sys.argv[9])
         gap = int(sys.argv[10])
-        cutoff = int(sys.argv[11])
 
-        print("ilen {}, conf {}, dist {}, gap {}". format(ilen, conf, dist, gap))
-        run(path, start_ts, size, conf, dist, ilen, c, f, year, gap, cutoff)
+        print("ilen {}, conf {}, dist {}, gap {}, minutes {}, start {}". format(ilen, int(conf*100), dist, gap, size, start))
+        run(path, start_ts, size, conf, dist, ilen, c, f, year, gap)
 
     else:
         print("Usage:\npython3 pipeline_frames_parallel.py <path> \
-            <start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> \
-            <confidence> <radius> <interaction length> <number of processes> \
-            <filename> <year> <gap-size> <cutoff>")
-        print("Example:\npython3 pipeline.py 'path/to/data' 2015-08-21T00:00:00Z 60 \
-            0.95 160 3 16 myfilename 2015 10")
+            \n<start-date as yyyy-mm-ddThh:mm:ssZ> <network_size in minutes> \
+            \n<confidence> <radius> <interaction length> <number of processes> \
+            \n<filename> <year> <gap-size>")
+        print("Example:\npython3 pipeline.py 'path/to/data' 2016-07-26T00:00:00Z 60 \
+            \n95 212 3 8 myfilename 2016 2")
