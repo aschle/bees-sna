@@ -149,6 +149,39 @@ def removeDetections(df, cutoff=10):
     
     return leftOver
 
+def myfunction2(stuff):
+    return stuff.apply(lambda x: x.d, axis=1).idxmin()
+
+def mapping(df_one, df_two):
+    s_one = Series((df_one.timestamp.unique()))
+    s_two = Series((df_two.timestamp.unique()))
+    
+    mapping = []
+    for i in list(range(len(s_one))):
+        d = abs(s_one[i]-s_two)
+        min_idx = d.idxmin()
+        mapping.append((i, min_idx, d[min_idx]))
+    
+    mapping = DataFrame(mapping, columns=["idx_one","idx_two",'d'])
+
+    fix = mapping.groupby(by="idx_two").apply(myfunction2).values
+    mapping = mapping.iloc[fix]
+    mapping = mapping[mapping['d'] < (0.332/2)]
+    
+    # drop stuff
+    df_one = df_one[df_one.frame_idx.isin(mapping.idx_one)]
+    df_two = df_two[df_two.frame_idx.isin(mapping.idx_two)]
+
+    mapping = mapping.set_index('idx_two')
+    
+    # change the frame_idx accordingly
+    newcol = df_two.frame_idx.apply(lambda x: mapping.idx_one[x])
+
+    df_two = df_two.assign(frame_idx = newcol)
+
+    return df_one, df_two
+
+
 
 def removeDetectionsList(df, datum):
 	liste = pd.Series.from_csv('IDlist_{}_95conf_24h.csv'.format(datum))

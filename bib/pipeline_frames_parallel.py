@@ -32,7 +32,7 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
         numframes = 0
         if (df.shape[0] != 0):
             numframes = df.groupby(by='frame_idx').size().shape[0]
-            
+
         stat.append(numframes)
 
         df = prep.calcIds(df, confidence, year)
@@ -43,10 +43,8 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
 
         parts[i] = df
 
-    # AUSGABE
-    print("#{}: From {} to {} - {}".format(enu, datetime.datetime.fromtimestamp(b, tz=pytz.UTC), datetime.datetime.fromtimestamp(e, tz=pytz.UTC), stat))
-
     if abbrechen == True:
+        print("#{}: From {} to {} - {}".format(enu, datetime.datetime.fromtimestamp(b, tz=pytz.UTC), datetime.datetime.fromtimestamp(e, tz=pytz.UTC), stat))
         return Series()
     
     if year == 2015:
@@ -62,6 +60,17 @@ def generate_network(enu, path, b, e, confidence, distance, ilen, year, gap):
         # cam 1 und cam 3 nach rechts verschieben
         parts[1].xpos = parts[1].xpos + xmax + offset
         parts[3].xpos = parts[3].xpos + xmax + offset
+
+        # Syncronisieren der Kameras pro Seite
+        parts[0], parts[1]= prep.mapping(parts[0], parts[1])
+        parts[2], parts[3]= prep.mapping(parts[2], parts[3])
+
+        d0  = len(parts[0].frame_idx.unique())
+        d1  = len(parts[1].frame_idx.unique())
+        d2  = len(parts[2].frame_idx.unique())
+        d3  = len(parts[3].frame_idx.unique())
+
+        print("#{}: From {} to {} - {} - {} {} {} {}".format(enu, datetime.datetime.fromtimestamp(b, tz=pytz.UTC), datetime.datetime.fromtimestamp(e, tz=pytz.UTC), stat, d0,d1,d2,d3))
 
         # Seiten zusammenfugen
         side0 = pd.concat([parts[0], parts[1]])
