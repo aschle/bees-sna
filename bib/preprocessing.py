@@ -428,7 +428,7 @@ def create_graph2(pairs):
 	edges = edges.reset_index()
 
 	for index, x in edges.iterrows():
-		G.add_edge(x.pair[0], x.pair[1], frequency=x.frequency, totalduration=x.totalduration)
+		G.add_edge(int(x.pair[0]), int(x.pair[1]), frequency=x.frequency, totalduration=x.totalduration)
 			#durations=str(tuple(x.durations))
 
 	return G
