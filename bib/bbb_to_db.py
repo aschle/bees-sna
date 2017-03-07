@@ -121,7 +121,7 @@ if __name__ == '__main__':
 		path_to_db = sys.argv[1]
 		path_to_repo = sys.argv[2]
 
-		conf = float(sys.argv[3])
+		conf = int(sys.argv[3])/100
 
 		start_string = str(sys.argv[4])
 		time_delta = int(sys.argv[5])
