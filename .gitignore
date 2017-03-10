@@ -12,3 +12,4 @@ data
 __*__
 *.db
 .ipynb_checkpoints
+*.pdf
